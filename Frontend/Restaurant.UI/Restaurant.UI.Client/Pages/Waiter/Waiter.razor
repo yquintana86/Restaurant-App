@@ -1,0 +1,358 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Restaurant.UI.Client.Components.Common
+@using Restaurant.UI.Client.Models
+@using SharedLib.Models.Waiter
+
+
+@page "/setting/waiter"
+@inherits PageBase
+@rendermode @(new InteractiveServerRenderMode(false))
+@attribute [Authorize]
+
+<AddPageTitle PageTitle="Waiters"/>
+
+<EditForm OnValidSubmit="RefreshResults" OnInvalidSubmit="ShowFilterErrors" Model="@Filter" FormName="WaiterFilter">
+    <DataAnnotationsValidator/>
+    <div class="card">  
+        <div class="card-header">
+            <b>Filters</b>
+        </div>
+        <div class="card-body bg-light">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="row">
+                        <label for="ipt_FirstNameFilter" class="col-sm-3 col-form-label">First Name</label>
+                        <div class="col-sm-8">
+                            <InputText id="ipt_FirstNameFilter" class="form-control outline-logging-red input-sm" pattern="[a-zA-Z]+" title="Text only" @bind-Value="@Filter.FirstName" />
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="row">
+                        <label for="ipt_LastNameFilter" class="col-sm-3 col-formlabel">Last Name</label>
+                        <div class="col-sm-8">
+                            <InputText id="ipt_LastNameFilter" @bind-Value="@Filter.LastName" pattern="[a-zA-Z]+" title="Text only" class="form-control outline-logging-red input-sm" />
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="row">
+                        <label for="ipn_SalaryFromFilter" class="col-sm-3 col-label-form">Salary Form</label>
+                        <div class="col-sm-8">
+                            <InputNumber id="ipn_SalaryFromFilter" @bind-Value="@Filter.SalaryFrom" class="form-control outline-logging-red input-sm" />
+                        </div>
+                    </div>
+                </div>                
+            </div>
+            <div class="row mt-2">                
+                <div class="col-md-4">
+                    <div class="row">
+                        <label for="ipn_SalaryToFilter" class="col-sm-3 col-form-label">Salary To</label>
+                        <div class="col-sm-8">
+                            <InputNumber id="ipn_SalaryToFilter" @bind-Value="@Filter.SalaryTo" class="form-control outline-logging-red input-sm" />
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="row">
+                        <label for="dt_StartDate" class="col-sm-3 col-form-label">Start Date</label>
+                        <div class="col-sm-8">
+                            <DatePickerBase @rendermode="InteractiveAuto" Id="dt_StartDate" IsCurrentYear="false" @bind-Value="Filter.DateFromStr" />
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="row">
+                        <label for="dt_EndDate" class="col-sm-3 col-form-label">End Date</label>
+                        <div class="col-sm-8">
+                            <DatePickerBase @rendermode="InteractiveAuto" Id="dt_EndDate" IsCurrentYear="false" @bind-Value="Filter.DateToStr" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="row">
+                <div class="col-md-12 d-flex justify-content-end align-items-center">
+                    <a title="Clear Search Parameters" class="btn btn-sm btn-warning" @onclick="ClearSearch">
+                        <i class="fa fa-eraser" aria-hidden="true"></i>
+                    </a>
+                    <a title="New Waiter" class="btn btn-sm btn-primary mx-1" @onclick="() => OpenWaiterShowDialog(null)">
+                        <i class="fa fa-plus" aria-hidden="true"></i>
+                    </a>
+                    <button type="submit" title="Search" class="btn btn-sm btn-success">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+<div class="row table-row">
+    <div class="col-md-12">
+        <table class="table table-hover table-striped">
+            <thead>
+                <tr>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Salary</th>
+                    <th>Room Responsible</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th style="width:5%;">
+                        <div class="pull-right me-3">
+                            <i class="fa fa-cog" aria-hidden="true"></i>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var waiter in Waiters)
+                {
+                    <tr>
+                        <td>@waiter.FirstName</td>
+                        <td>@waiter.LastName</td>
+                        <td>@waiter.Salary.ToString("N2")</td>
+                        <td>@waiter.RoomName</td>
+                        <td>@waiter.Start.ToShortDateString()</td>
+                        <td>@(waiter.End is null ? "" : waiter.End.Value.ToShortDateString()) </td >
+                        <td>
+                            <div class="d-flex justify-content-end align-items-center">
+                                <a class="me-2 cursor-pointer" title="Update" @onclick="() => OpenWaiterShowDialog(waiter)">
+                                    <i class="fa fa-save text-secondary" aria-hidden="true"></i>
+                                </a>
+                                <a title="Delete" @onclick="() => DeleteWaiter(waiter.Id)" class="cursor-pointer">
+                                    <i class="fa fa-trash text-danger" aria-hidden="true"></i>
+                                </a>
+                            </div>
+
+                        </td>
+
+
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<hr class="bg-black w-100 mt-0" style="padding:2px;" />
+<div class="row">
+    <div class="col-md-12">
+        <Pager Result="@PagedResult" OnPagedChanged="@(async (int p) => await RefreshPageByNumber(p))" />
+    </div>
+</div>
+
+<FormDialog @rendermode="InteractiveAuto" FormData="WaiterFormData"
+            Title="@((WaiterFormData.Model is null || WaiterFormData.Model.Id == 0) ? "Add New Waiter" : "Update Waiter")"
+            OnAccept="PostChanges" Context="editModel" Styles="@((WaiterFormData.Model is not null && WaiterFormData.Model.Id > 0) ? "z-index:1;" : "")">
+    <ChildBodyContext>
+        <div class="mb-3">
+            <label for="ipt_WaiterFirstName" class="form-label">First Name</label>
+            <InputText id="ipt_WaiterFirstName" @bind-Value="@editModel.FirstName" class="form-control input-sm" placeholder="Enter first name..." />
+        </div>
+        <div class="mb-3">
+            <label for="ipt_WaiterlastName" class="form-label">Last Name</label>
+            <InputText id="ipt_WaiterlastName" @bind-Value="@editModel.LastName" class="form-control input-sm" placeholder="Enter last name..." />
+        </div>
+        <div class="mb-3">
+            <label for="ipn_WaiterSalary" class="form-label">Salary</label>
+            <InputNumber id="ipn_WaiterSalary" @bind-Value="@editModel.Salary" class="form-control input-sm" />
+        </div>
+        @if (editModel.Id > 0)
+        {
+            <div class="mb-3">
+                <label for="ipt_StartDate" class="form-label">Start Date</label>
+                <DatePickerBase @rendermode="InteractiveAuto" Id="ipt_StartDate" @bind-Value="@editModel.StartStr" />
+            </div>
+        }
+
+    </ChildBodyContext>
+
+</FormDialog>
+
+<ConfirmDialog @rendermode="InteractiveAuto" @ref="_confirmDialog" />
+
+
+@code {
+
+    private WaiterFilterModel Filter { get; set; } = new WaiterFilterModel() { RequestCount = true };
+    private List<WaiterViewModel> Waiters { get; set; } = new List<WaiterViewModel>();
+    private ConfirmDialog _confirmDialog;
+    private FormDialogModel<WaiterViewModel> WaiterFormData { get; set; } = new FormDialogModel<WaiterViewModel>();
+    private PagedResult<WaiterViewModel> PagedResult { get; set; } = new PagedResult<WaiterViewModel>();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshResults();
+    }
+
+    private async Task RefreshResults()
+    {
+        try
+        {
+            var response = await _httpClient.PostJsonNewtonAsync<PagedResult<WaiterDto>>("api/waiters/getwaitersbyfilter", Filter);
+
+            if (response is null || response.Error is not null)
+            {
+                await ToastError(response is null ? "No response was received" : response.Error?.Message ?? "Something Happpened");
+            }            
+            else
+            {
+                var waiters = response.Results.Select(w => new WaiterViewModel
+                    {
+                        Id = w.Id,
+                        FirstName = w.FirstName,
+                        LastName = w.LastName,
+                        Salary = w.Salary,
+                        Start =  w.Start,
+                        End = w.End,
+                        RoomName = w.RoomName
+                    }).ToList();
+
+                Waiters = waiters;
+
+                PagedResult = new PagedResult<WaiterViewModel>
+                {
+                 ItemCount = response.ItemCount,
+                 Currentpage  = response.Currentpage,
+                 HasNextPage = response.HasNextPage,
+                 PageCount = response.PageCount,
+                 PageSize = response.PageSize,
+                 TotalItemCount = response.TotalItemCount,
+                 Results = waiters
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            await ToastError(ex.Message);
+        }
+    }
+
+    private async Task OpenWaiterShowDialog(WaiterViewModel? waiter)
+    {
+        try
+        {
+            if (waiter is null)
+                waiter = new();
+
+            WaiterFormData.Model = new WaiterViewModel
+                {
+                    Id = waiter.Id,
+                    FirstName = waiter.FirstName,
+                    LastName = waiter.LastName,
+                    Salary = waiter.Salary,
+                    StartStr = waiter.StartStr,
+                    End = waiter.End
+                };
+
+            WaiterFormData.State.Show();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            await ToastError(ex.Message);
+        }
+    }
+
+    private async Task PostChanges()
+    {
+        try
+        {
+            var waiter = WaiterFormData.Model;
+            var response = waiter!.Id == 0 ? await _httpClient.PostJsonNewtonAsync<ApiOperationResult>("api/waiters/createwaiter", waiter.ToWaiterInsertModel())
+                                    : await _httpClient.PutJsonNewtonAsync<ApiOperationResult>("api/waiters/updatewaiter", waiter.ToWaiterUpdateModel());
+            
+            if (response is null)
+            {
+                WaiterFormData.State.Show();
+                WaiterFormData.State.AddErrors(new List<string>() { "No response was received" });
+            }
+            else
+            if (response.IsSuccess)
+            {
+                await ToastSuccess("Success", $"Waiter successfully {(waiter.Id == 0 ? "Created" : "Updated")}");
+                await RefreshResults();
+                WaiterFormData.State.Hide();
+            }
+            else
+            {
+                var errors = response.Errors?.Select(e => e.Message) ?? new List<string>() { "Something Happened " };
+                WaiterFormData.State.Show();
+                WaiterFormData.State.AddErrors(errors.ToList());
+
+            }
+        }
+        catch (Exception ex)
+        {
+            WaiterFormData.State.Show();
+            WaiterFormData.State.AddError(ex.Message);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteWaiter(int id)
+    {
+        try
+        {
+            if (id == 0)
+                await ToastError("Incorrect waiter Id");
+
+            if (!await _confirmDialog.ShowDialog("Delete", new List<string> { "Are you going to delete this item" }))
+                return;
+
+            var response = await _httpClient.DeleteJsonNewtonAsync<ApiOperationResult>($"api/waiters/deletewaiter/{id}");
+
+            if (response is null)
+            {
+                await ToastError("No response was received");
+                await RefreshResults();
+            }
+            else
+            if (response.IsSuccess)
+            {
+                await RefreshResults();
+                await ToastSuccess("Success", "Waiter deleted");
+                StateHasChanged();
+            }
+            else
+            {
+                var errors = response.Errors?.Select(e => e.Message);
+                await ToastError(string.Join(", ", errors?.ToList() ?? new List<string>()));
+            }
+        }
+        catch (Exception ex)
+        {
+            await ToastError(ex.Message);
+        }
+    }
+
+    private async Task ClearSearch()
+    {
+        Filter = new();
+        await RefreshResults();
+        StateHasChanged();
+    }
+
+    private async Task RefreshPageByNumber(int num)
+    {
+        if (num <= 0 || num > PagedResult.PageCount)
+            await ToastError("Page selected doesn't exist");
+
+        Filter.Page = num;
+        await RefreshResults();
+        StateHasChanged();
+    }
+
+    private async Task ShowFilterErrors(EditContext context)
+    {
+        var errors = context.GetValidationMessages().Select(vm => vm);
+        await ToastError(string.Join(", ", errors));
+    }
+
+}
